@@ -1,5 +1,6 @@
 import os
 import sys
+import re
 import uuid
 import threading
 from werkzeug.utils import secure_filename
@@ -121,16 +122,23 @@ def upload_drive_url():
     out_dir = os.path.join(ASSETS_DIR, "drive_uploads")
     os.makedirs(out_dir, exist_ok=True)
 
-    try:
-        print(f"[Google Drive Import] Baixando do link: {drive_url}...")
-        if "folders/" in drive_url or "folder" in drive_url:
-            gdown.download_folder(drive_url, output=out_dir, quiet=False, remaining_ok=True)
-        else:
-            gdown.download(drive_url, output=out_dir, quiet=False, fuzzy=True)
-    except Exception as e:
-        print(f"[Google Drive Import] Aviso no download: {e}")
+    # Extrair ID limpo da pasta do Google Drive
+    folder_match = re.search(r'(?:folders/|id=)([a-zA-Z0-9_-]+)', drive_url)
+    clean_url = drive_url
+    if folder_match:
+        fid = folder_match.group(1)
+        clean_url = f"https://drive.google.com/drive/folders/{fid}"
 
-    # Coletar TODOS os clipes válidos baixados do imóvel
+    print(f"[Google Drive Import] Baixando do link limpo: {clean_url}...")
+    try:
+        if "folders" in clean_url or "folder" in clean_url:
+            gdown.download_folder(clean_url, output=out_dir, quiet=True, remaining_ok=True, use_cookies=False)
+        else:
+            gdown.download(clean_url, output=out_dir, quiet=True, fuzzy=True, use_cookies=False)
+    except Exception as e:
+        print(f"[Google Drive Import] Erro no download gdown: {e}")
+
+    # Coletar TODOS os clipes válidos no diretório
     all_videos = []
     for root, _, files in os.walk(out_dir):
         for f in files:
@@ -142,7 +150,7 @@ def upload_drive_url():
     all_videos.sort(key=lambda x: x[1], reverse=True)
 
     if not all_videos:
-        return jsonify({"error": "Nenhum vídeo válido (.MOV ou .MP4) encontrado no link do Drive"}), 400
+        return jsonify({"error": "Não foi possível baixar os vídeos. Verifique se o link do Google Drive está como 'Qualquer pessoa com o link pode ver'."}), 400
 
     video_list = [
         {
