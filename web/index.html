@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rekynt AI Studio - Edição de Vídeos de Imóveis</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-background"></div>
+
+  <!-- Modal Login Google -->
+  <div class="modal-overlay" id="modal-login" style="display: none;">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="logo-v large">R</div>
+        <h2>Portal do Corretor Rekynt</h2>
+        <p>Acesse com seu e-mail do Gmail para editar vídeos de imóveis na sessão atual.</p>
+      </div>
+      <form id="form-login" class="login-form">
+        <div class="input-group">
+          <label>E-mail do Gmail / Corporativo:</label>
+          <input type="email" id="login-email" placeholder="corretor@rekynt.com.br" required value="corretor.rekynt@gmail.com">
+        </div>
+        <button type="submit" class="btn btn-google">
+          <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/></svg>
+          Entrar com o Google / Gmail
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Header Bar -->
+  <header class="top-app-bar">
+    <div class="header-left">
+      <div class="brand-logo">
+        <span class="logo-v">R</span>
+        <span class="logo-text">Rekynt <span class="highlight">AI Studio</span></span>
+      </div>
+    </div>
+    
+    <div class="header-right">
+      <button class="btn btn-outline" id="btn-reset-session" style="padding:6px 12px; font-size:12px; border-color:rgba(255,255,255,0.2);" title="Limpa vídeos antigos e começa uma sessão nova">🔄 Nova Edição (Zerar Sessão)</button>
+      <div class="antigravity-badge">
+        <span class="status-dot active"></span>
+        <span class="badge-text">Player Interativo de Reels</span>
+      </div>
+      <div class="user-profile-badge">
+        <span class="user-email" id="user-email-display">corretor.rekynt@gmail.com</span>
+        <div class="user-avatar" id="btn-logout" title="Sair da sessão">
+          <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80" alt="Avatar">
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <div class="main-container">
+    <div class="page-title-block">
+      <h1>Gerador de Reels de Imóveis 🏢✨</h1>
+      <p>Envie a gravação do imóvel ou cole o link do Google Drive. O Reels editado será exibido e reproduzido diretamente no celular ao centro.</p>
+    </div>
+
+    <div class="studio-grid">
+      <!-- Painel de Envio Simplificado -->
+      <div class="panel panel-controls">
+        <div class="panel-header">
+          <h2>📤 Selecionar Vídeo do Imóvel</h2>
+          <p>Envie do celular ou cole o link da pasta do Google Drive</p>
+        </div>
+
+        <div class="upload-dropzone" id="upload-dropzone">
+          <input type="file" id="file-input" accept="video/*" style="display:none;">
+          <div class="dropzone-content">
+            <span class="upload-icon">🎥</span>
+            <h3>Clique ou Arraste o Vídeo aqui</h3>
+            <p>Vídeo gravado no celular (.mp4, .mov)</p>
+            <button class="btn btn-outline" type="button" onclick="document.getElementById('file-input').click()">📁 Escolher Arquivo do Celular</button>
+          </div>
+          <div class="upload-progress" id="upload-progress" style="display:none;">
+            <span class="progress-label" id="upload-progress-label">Enviando vídeo...</span>
+            <div class="progress-bar-container"><div class="progress-bar-fill" id="upload-progress-bar"></div></div>
+          </div>
+        </div>
+
+        <div class="drive-import-block">
+          <label for="input-drive-url">🔗 Cole o Link da Pasta do Google Drive:</label>
+          <div class="drive-input-row">
+            <input type="text" id="input-drive-url" class="input-select" placeholder="https://drive.google.com/drive/folders/...">
+            <button class="btn btn-outline" id="btn-import-drive">Importar</button>
+          </div>
+        </div>
+
+        <div class="control-group">
+          <label for="select-video">Vídeo Selecionado para a Edição Atual:</label>
+          <select id="select-video" class="input-select">
+            <option value="">Nenhum vídeo selecionado - Envie do celular ou Drive acima</option>
+          </select>
+        </div>
+
+        <button class="btn btn-primary btn-render" id="btn-start-render">
+          <span>🪄 Criar Reels Rekynt (1-Clique)</span>
+        </button>
+      </div>
+
+      <!-- Phone Simulator & Interactive Player -->
+      <div class="panel panel-preview">
+        <div class="panel-header text-center">
+          <h2>📱 Reprodução do Reels no Celular</h2>
+          <p id="phone-status-subtitle">Envie um vídeo para visualizar</p>
+        </div>
+
+        <div class="phone-mockup">
+          <div class="phone-screen">
+            <div class="video-preview-canvas">
+              
+              <!-- Video HTML5 Player Real -->
+              <video id="phone-video-player" class="phone-video-element" controls loop playsinline style="width:100%; height:100%; object-fit:cover; display:none;"></video>
+
+              <!-- Simulated Background (para quando nao ha video tocando) -->
+              <div class="simulated-video-bg" id="simulated-video-bg">
+                <div class="cyber-glow-bg"></div>
+              </div>
+
+              <!-- Overlay de Carregamento da IA dentro do Celular -->
+              <div class="phone-loader-overlay" id="phone-loader-overlay" style="display:none;">
+                <div class="loader-content">
+                  <span class="job-spinner large"></span>
+                  <h3 id="phone-loader-title">IA Editando o Vídeo...</h3>
+                  <p id="phone-loader-pct">0%</p>
+                </div>
+              </div>
+
+              <!-- Reels UI Overlay (Sidebar e Infos) -->
+              <div class="reels-ui-overlay" id="reels-ui-overlay">
+                <div class="reels-sidebar">
+                  <div class="action-btn">❤️ <span>54.1k</span></div>
+                  <div class="action-btn">💬 <span>4.2k</span></div>
+                  <div class="action-btn">✈️ <span>Share</span></div>
+                </div>
+                <div class="reels-bottom-info">
+                  <div class="user-row">
+                    <span class="avatar">R</span>
+                    <span>@Rekynt_Imoveis</span>
+                    <button class="btn-follow">Seguir</button>
+                  </div>
+                  <div class="caption-row">
+                    Edição Automática IA • Rekynt #Imoveis #Rekynt
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+        <!-- Botão de Download Direto do Celular -->
+        <a id="btn-phone-download" href="#" target="_blank" download class="btn btn-primary" style="display:none; width:100%; margin-top:14px; text-decoration:none; font-size:15px; padding:14px;">
+          📥 Baixar Reels Finalizado no Celular
+        </a>
+      </div>
+
+      <!-- Status & Output Gallery -->
+      <div class="panel panel-history">
+        <div class="panel-header">
+          <h2>🚀 Status & Download do Reels</h2>
+          <p>Baixe o vídeo editado na sessão atual</p>
+        </div>
+
+        <div class="job-status-card" id="job-status-card" style="display:none;">
+          <div class="job-header">
+            <span class="job-spinner" id="job-spinner"></span>
+            <span class="job-title" id="job-status-title">Processando Reels com IA...</span>
+          </div>
+          <p class="job-msg" id="job-status-msg">Renderizando em alta qualidade de vídeo e áudio...</p>
+          <div class="progress-bar-container">
+            <div class="progress-bar-fill" id="job-progress-bar"></div>
+          </div>
+        </div>
+
+        <div class="output-gallery">
+          <h3>📂 Reels Pronto da Sessão</h3>
+          <div class="outputs-list" id="outputs-list">
+            <div class="empty-state">Nenhum Reels gerado nesta sessão ainda. Envie um vídeo ao lado.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
