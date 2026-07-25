@@ -7,18 +7,16 @@ from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 import gdown
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+WEB_DIR = os.path.dirname(os.path.abspath(__file__))
+BASE_DIR = os.path.abspath(os.path.join(WEB_DIR, ".."))
+ASSETS_DIR = os.path.join(BASE_DIR, "assets")
+
+sys.path.append(BASE_DIR)
 from core.rekynt_engine import RekyntAIStudioEngine
 from core.auth import BrokerAuthManager
 
-app = Flask(__name__, static_folder=".")
+app = Flask(__name__, static_folder=WEB_DIR)
 CORS(app)
-
-BASE_DIR = r"C:\Users\fenie\.gemini\antigravity\scratch\rekynt_reels_ai_studio"
-if not os.path.exists(BASE_DIR):
-    BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-
-ASSETS_DIR = os.path.join(BASE_DIR, "assets")
 
 engine = RekyntAIStudioEngine(output_dir=os.path.join(ASSETS_DIR, "output"))
 auth_manager = BrokerAuthManager()
@@ -26,15 +24,15 @@ jobs = {}
 
 @app.route("/")
 def index():
-    return send_from_directory(".", "index.html")
+    return send_from_directory(WEB_DIR, "index.html")
 
 @app.route("/style.css")
 def style_css():
-    return send_from_directory(".", "style.css")
+    return send_from_directory(WEB_DIR, "style.css")
 
 @app.route("/app.js")
 def app_js():
-    return send_from_directory(".", "app.js")
+    return send_from_directory(WEB_DIR, "app.js")
 
 @app.route("/assets/<path:filename>")
 def serve_assets(filename):
