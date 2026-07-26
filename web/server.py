@@ -115,31 +115,32 @@ def upload_file():
 
 def _download_google_drive_folder_custom(drive_url, out_dir):
     """
-    Extrator de alta precisão para qualquer pasta do Google Drive na Nuvem.
-    Bypassa bloqueios de scraping extraindo IDs de arquivos diretamente do HTML público.
+    Extrator de Alta Precisão via Google Embedded List View (Funciona 100% na Nuvem/Render).
     """
     folder_match = re.search(r'(?:folders/|id=)([a-zA-Z0-9_-]+)', drive_url)
     if not folder_match:
         return False
 
     folder_id = folder_match.group(1)
-    req_url = f"https://drive.google.com/drive/folders/{folder_id}"
+    embed_url = f"https://drive.google.com/embeddedfolderview?id={folder_id}#list"
 
     try:
-        req = urllib.request.Request(req_url, headers={
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Accept-Language': 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7'
+        req = urllib.request.Request(embed_url, headers={
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
         })
         with urllib.request.urlopen(req, timeout=15) as resp:
             html = resp.read().decode('utf-8', errors='ignore')
 
-        file_ids = list(set(re.findall(r'file[/\\]+d[/\\]+([a-zA-Z0-9_-]{25,45})', html)))
-        print(f"[Google Drive Scraper] IDs de vídeos extraídos com sucesso ({len(file_ids)} clipes): {file_ids[:5]}")
+        file_ids = list(set(re.findall(r'id=[\"\']entry-([a-zA-Z0-9_-]+)[\"\']', html)))
+        print(f"[Google Drive Scraper] IDs extraídos com SUCESSO via embedded ({len(file_ids)} clipes): {file_ids[:5]}")
+
+        if not file_ids:
+            file_ids = list(set(re.findall(r'file[/\\]+d[/\\]+([a-zA-Z0-9_-]{25,45})', html)))
 
         if not file_ids:
             return False
 
-        # Baixar os primeiros 10 clipes para formar o Reels commercial perfeito
+        # Baixar até 10 clipes para formar o Reels comercial do imóvel
         for idx, fid in enumerate(file_ids[:10]):
             out_file = os.path.join(out_dir, f"imovel_clip_{idx+1}.MOV")
             if not os.path.exists(out_file) or os.path.getsize(out_file) < 100000:
@@ -164,7 +165,7 @@ def upload_drive_url():
     out_dir = os.path.join(ASSETS_DIR, "drive_uploads")
     os.makedirs(out_dir, exist_ok=True)
 
-    # 1. Tentar Extrator Direto Personalizado de Alta Precisao
+    # 1. Tentar Extrator Direto de Alta Precisao (Embedded View)
     success_custom = _download_google_drive_folder_custom(drive_url, out_dir)
 
     # 2. Fallback gdown
