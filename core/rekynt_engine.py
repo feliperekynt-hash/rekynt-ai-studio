@@ -11,14 +11,16 @@ from .subtitles import AISubtitleGenerator
 class RekyntAIStudioEngine:
     """
     Real Estate Video Engine (High-Performance Edition) - Rekynt AI Studio.
+    - Resolução Dinâmica de Caminho (100% Compatível com Render/Linux/Docker e Windows).
     - Autorotate nativo sem rotação manual: vídeos de iPhone (.MOV) e Android (.MP4) 100% em pé (Vertical 9:16).
-    - Concat Demuxer Ultra-Rápido (~10 segundos de renderização total, zero consumo excessivo de memória).
+    - Concat Demuxer Ultra-Rápido (~10 segundos de renderização total).
     - Color Grading "Cinematic Real Estate" (contraste 1.14, nitidez e iluminação natural).
     - Legendas Dinâmicas Neutras sem corte de texto nas bordas (Regra de Ouro).
     - Trilha Sonora Imobiliária de Alto Padrão (AI Audio Match).
     """
     def __init__(self, output_dir=None):
-        self.base_dir = r"C:\Users\fenie\.gemini\antigravity\scratch\rekynt_reels_ai_studio"
+        core_dir = os.path.dirname(os.path.abspath(__file__))
+        self.base_dir = os.path.abspath(os.path.join(core_dir, ".."))
         self.output_dir = output_dir or os.path.join(self.base_dir, "assets", "output")
         self.audio_dir = os.path.join(self.base_dir, "assets", "audio")
         os.makedirs(self.output_dir, exist_ok=True)
@@ -50,6 +52,10 @@ class RekyntAIStudioEngine:
         t0 = time.time()
         print(f"[RekyntAIEngine] Executando Real Estate Engine High-Performance para: {caminho_video}...")
 
+        # Resolver caminho absoluto dinamicamente
+        if not os.path.isabs(caminho_video):
+            caminho_video = os.path.join(self.base_dir, caminho_video)
+
         drive_uploads_dir = os.path.join(self.base_dir, "assets", "drive_uploads")
         
         # 1. Selecionar Clipes Validados do Imóvel
@@ -57,16 +63,24 @@ class RekyntAIStudioEngine:
         if "TOUR_COMPLETO" in caminho_video or not os.path.exists(caminho_video):
             all_found = sorted([
                 os.path.join(drive_uploads_dir, f) for f in os.listdir(drive_uploads_dir)
-                if f.upper().endswith(('.MOV', '.MP4')) and not f.startswith(('Rekynt_', 'test_', 'imovel_drive_'))
+                if f.upper().endswith(('.MOV', '.MP4')) and not f.startswith(('Rekynt_', 'test_'))
             ])
             video_files = [f for f in all_found if os.path.getsize(f) > 100000]
         else:
             video_files = [caminho_video]
 
         if not video_files:
-            video_files = [caminho_video]
+            # Fallback para quaisquer arquivos .MOV ou .MP4 na pasta drive_uploads
+            all_found = sorted([
+                os.path.join(drive_uploads_dir, f) for f in os.listdir(drive_uploads_dir)
+                if f.upper().endswith(('.MOV', '.MP4'))
+            ])
+            video_files = [f for f in all_found if os.path.getsize(f) > 100000]
 
-        # Selecionar até 10 tomadas comerciais para formar um Reels ritmado de ~35 a 40 segundos
+        if not video_files:
+            raise RuntimeError(f"Nenhum arquivo de vídeo válido encontrado para processamento.")
+
+        # Selecionar até 10 tomadas comerciais
         clips_to_process = video_files[:10]
         print(f"[RekyntAIEngine] Montando Reels Comercial 9:16 em pé com {len(clips_to_process)} tomadas do imóvel...")
 
@@ -75,14 +89,14 @@ class RekyntAIStudioEngine:
 
         caminho_saida = os.path.join(self.output_dir, output_filename)
 
-        # 2. Normalização individual de cada clipe usando Autorotate nativo do FFmpeg (Sem Transpose manual)
+        # 2. Normalização individual de cada clipe usando Autorotate nativo do FFmpeg
         scaled_clips = []
         for i, path in enumerate(clips_to_process):
             tmp_out = os.path.join(self.temp_dir, f"clip_norm_{i}.mp4")
 
             cmd_norm = [
                 self.ffmpeg_bin, '-y',
-                '-autorotate', # ROTAÇÃO NATIVA DE IPHONE E ANDROID
+                '-autorotate',
                 '-ss', '0.5', '-t', '3.5',
                 '-i', os.path.abspath(path),
                 '-vf', 'scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,setsar=1,eq=contrast=1.14:brightness=0.02:saturation=1.22',
@@ -95,7 +109,7 @@ class RekyntAIStudioEngine:
                 scaled_clips.append(tmp_out)
 
         if not scaled_clips:
-            raise RuntimeError("Não foi possível processar os clipes do imóvel.")
+            raise RuntimeError("Não foi possível normalizar os clipes do imóvel.")
 
         # 3. Concat Demuxer Ultra-Rápido
         concat_txt = os.path.join(self.temp_dir, "concat_list.txt")
@@ -135,7 +149,7 @@ class RekyntAIStudioEngine:
         caption_text, caption_fname = self.sub_generator.get_default_caption()
         sub_path = self.sub_generator.generate_subtitle_card(caption_text, caption_fname)
 
-        # 6. PIPELINE FINAL: LOGOS 40% + LEGENDA INTEIRA ENQUADRADA + TRILHA IMPECÁVEL
+        # 6. PIPELINE FINAL: OVERLAY DE LOGOS + LEGENDA ENQUADRADA + TRILHA
         cmd_final = [
             self.ffmpeg_bin, '-y',
             '-i', out_joined,
@@ -165,4 +179,4 @@ class RekyntAIStudioEngine:
         else:
             err_log = res.stderr.decode("utf-8", errors="ignore")
             print(f"[RekyntAIEngine] Erro na renderização: {err_log}")
-            raise RuntimeError(f"Erro na renderização: {err_log}")
+            raise RuntimeError(f"Erro na renderização: {err_log[:200]}")
