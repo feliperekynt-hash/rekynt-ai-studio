@@ -3,6 +3,7 @@ import sys
 import re
 import uuid
 import threading
+import urllib.request
 from werkzeug.utils import secure_filename
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
@@ -112,6 +113,47 @@ def upload_file():
         "message": f"Vídeo '{filename}' pronto para edição!"
     })
 
+def _download_google_drive_folder_custom(drive_url, out_dir):
+    """
+    Extrator de alta precisão para qualquer pasta do Google Drive na Nuvem.
+    Bypassa bloqueios de scraping extraindo IDs de arquivos diretamente do HTML público.
+    """
+    folder_match = re.search(r'(?:folders/|id=)([a-zA-Z0-9_-]+)', drive_url)
+    if not folder_match:
+        return False
+
+    folder_id = folder_match.group(1)
+    req_url = f"https://drive.google.com/drive/folders/{folder_id}"
+
+    try:
+        req = urllib.request.Request(req_url, headers={
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept-Language': 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7'
+        })
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            html = resp.read().decode('utf-8', errors='ignore')
+
+        file_ids = list(set(re.findall(r'file[/\\]+d[/\\]+([a-zA-Z0-9_-]{25,45})', html)))
+        print(f"[Google Drive Scraper] IDs de vídeos extraídos com sucesso ({len(file_ids)} clipes): {file_ids[:5]}")
+
+        if not file_ids:
+            return False
+
+        # Baixar os primeiros 10 clipes para formar o Reels commercial perfeito
+        for idx, fid in enumerate(file_ids[:10]):
+            out_file = os.path.join(out_dir, f"imovel_clip_{idx+1}.MOV")
+            if not os.path.exists(out_file) or os.path.getsize(out_file) < 100000:
+                print(f"[Google Drive Scraper] Baixando clipe {idx+1}/{len(file_ids[:10])} (ID: {fid})...")
+                try:
+                    gdown.download(id=fid, output=out_file, quiet=True, fuzzy=True, use_cookies=False)
+                except Exception as ex:
+                    print(f"[Google Drive Scraper] Aviso ao baixar ID {fid}: {ex}")
+
+        return True
+    except Exception as err:
+        print(f"[Google Drive Scraper] Erro ao raspar pasta do Drive: {err}")
+        return False
+
 @app.route("/api/upload-drive-url", methods=["POST"])
 def upload_drive_url():
     data = request.json or {}
@@ -122,27 +164,23 @@ def upload_drive_url():
     out_dir = os.path.join(ASSETS_DIR, "drive_uploads")
     os.makedirs(out_dir, exist_ok=True)
 
-    # Extrair ID limpo da pasta do Google Drive
-    folder_match = re.search(r'(?:folders/|id=)([a-zA-Z0-9_-]+)', drive_url)
-    clean_url = drive_url
-    if folder_match:
-        fid = folder_match.group(1)
-        clean_url = f"https://drive.google.com/drive/folders/{fid}"
+    # 1. Tentar Extrator Direto Personalizado de Alta Precisao
+    success_custom = _download_google_drive_folder_custom(drive_url, out_dir)
 
-    print(f"[Google Drive Import] Baixando do link limpo: {clean_url}...")
-    try:
-        if "folders" in clean_url or "folder" in clean_url:
+    # 2. Fallback gdown
+    if not success_custom:
+        try:
+            folder_match = re.search(r'(?:folders/|id=)([a-zA-Z0-9_-]+)', drive_url)
+            clean_url = f"https://drive.google.com/drive/folders/{folder_match.group(1)}" if folder_match else drive_url
             gdown.download_folder(clean_url, output=out_dir, quiet=True, remaining_ok=True, use_cookies=False)
-        else:
-            gdown.download(clean_url, output=out_dir, quiet=True, fuzzy=True, use_cookies=False)
-    except Exception as e:
-        print(f"[Google Drive Import] Erro no download gdown: {e}")
+        except Exception as e:
+            print(f"[Google Drive Import] Aviso no fallback gdown: {e}")
 
     # Coletar TODOS os clipes válidos no diretório
     all_videos = []
     for root, _, files in os.walk(out_dir):
         for f in files:
-            if f.upper().endswith(('.MOV', '.MP4')) and not f.startswith(('Rekynt_', 'test_', 'imovel_drive_')):
+            if f.upper().endswith(('.MOV', '.MP4')) and not f.startswith(('Rekynt_', 'test_')):
                 fp = os.path.join(root, f)
                 if os.path.getsize(fp) > 100000:
                     all_videos.append((fp, os.path.getmtime(fp)))
@@ -150,7 +188,9 @@ def upload_drive_url():
     all_videos.sort(key=lambda x: x[1], reverse=True)
 
     if not all_videos:
-        return jsonify({"error": "Não foi possível baixar os vídeos. Verifique se o link do Google Drive está como 'Qualquer pessoa com o link pode ver'."}), 400
+        return jsonify({
+            "error": "Não foi possível acessar a pasta do Google Drive. Verifique se o link está como 'Qualquer pessoa com o link pode ver' ou use o botão 'Escolher Arquivo do Celular' para subir os vídeos direto da galeria!"
+        }), 400
 
     video_list = [
         {
@@ -166,7 +206,7 @@ def upload_drive_url():
     default_rel_path = "drive_uploads/TOUR_COMPLETO_UNIFICADO.mp4"
     default_filename = f"🎬 TOUR COMPLETO UNIFICADO DO IMÓVEL ({len(all_videos)} Clipes da Pasta)"
 
-    print(f"[Google Drive Import] Importados {len(all_videos)} clipes do imóvel!")
+    print(f"[Google Drive Import] Importados {len(all_videos)} clipes do imóvel com sucesso!")
 
     return jsonify({
         "success": True,
