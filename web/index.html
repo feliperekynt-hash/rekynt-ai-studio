@@ -68,20 +68,20 @@
       <!-- Painel de Envio Simplificado -->
       <div class="panel panel-controls">
         <div class="panel-header">
-          <h2>📤 Selecionar Vídeo do Imóvel</h2>
-          <p>Envie do celular ou cole o link da pasta do Google Drive</p>
+          <h2>📤 Selecionar Vídeos do Imóvel</h2>
+          <p>Selecione múltiplos vídeos do celular ou cole o link da pasta do Google Drive</p>
         </div>
 
         <div class="upload-dropzone" id="upload-dropzone">
-          <input type="file" id="file-input" accept="video/*" style="display:none;">
+          <input type="file" id="file-input" accept="video/*" multiple style="display:none;">
           <div class="dropzone-content">
             <span class="upload-icon">🎥</span>
-            <h3>Clique ou Arraste o Vídeo aqui</h3>
-            <p>Vídeo gravado no celular (.mp4, .mov)</p>
-            <button class="btn btn-outline" type="button" onclick="document.getElementById('file-input').click()">📁 Escolher Arquivo do Celular</button>
+            <h3>Clique ou Arraste os Vídeos aqui</h3>
+            <p>Selecione um ou vários vídeos gravados no celular (.mp4, .mov)</p>
+            <button class="btn btn-outline" type="button" onclick="document.getElementById('file-input').click()">📁 Escolher Arquivo(s) do Celular</button>
           </div>
           <div class="upload-progress" id="upload-progress" style="display:none;">
-            <span class="progress-label" id="upload-progress-label">Enviando vídeo...</span>
+            <span class="progress-label" id="upload-progress-label">Enviando vídeos...</span>
             <div class="progress-bar-container"><div class="progress-bar-fill" id="upload-progress-bar"></div></div>
           </div>
         </div>

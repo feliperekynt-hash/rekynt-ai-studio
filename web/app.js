@@ -110,35 +110,62 @@ document.addEventListener("DOMContentLoaded", () => {
 
   uploadDropzone.addEventListener("drop", (e) => {
     const files = e.dataTransfer.files;
-    if (files.length > 0) uploadFileDirectly(files[0]);
+    if (files.length > 0) uploadFilesBatch(files);
   });
 
   fileInput.addEventListener("change", () => {
-    if (fileInput.files.length > 0) uploadFileDirectly(fileInput.files[0]);
+    if (fileInput.files.length > 0) uploadFilesBatch(fileInput.files);
   });
 
-  async function uploadFileDirectly(file) {
+  async function uploadFilesBatch(files) {
+    const total = files.length;
     uploadProgress.style.display = "block";
-    uploadProgressLabel.textContent = `Enviando '${file.name}'...`;
-    uploadProgressBar.style.width = "50%";
+    uploadProgressBar.style.width = "10%";
 
-    const formData = new FormData();
-    formData.append("file", file);
+    let uploadedCount = 0;
+    for (let i = 0; i < total; i++) {
+      const file = files[i];
+      uploadProgressLabel.textContent = `Enviando clipe ${i + 1}/${total}: '${file.name}'...`;
+      
+      const formData = new FormData();
+      formData.append("file", file);
 
-    try {
-      const res = await fetch("/api/upload", { method: "POST", body: formData });
-      const data = await res.json();
-
-      if (data.success) {
-        uploadProgressBar.style.width = "100%";
-        uploadProgressLabel.textContent = `✅ Vídeo '${data.filename}' pronto para edição!`;
-        
-        addVideoToSession(data.filename, data.rel_path);
-      } else {
-        uploadProgressLabel.textContent = `❌ Erro: ${data.error || "Falha no envio"}`;
+      try {
+        const res = await fetch("/api/upload", { method: "POST", body: formData });
+        const data = await res.json();
+        if (data.success) {
+          uploadedCount++;
+          const pct = Math.round((uploadedCount / total) * 100);
+          uploadProgressBar.style.width = `${pct}%`;
+          
+          if (!sessionVideos.some(v => v.rel_path === data.rel_path)) {
+            sessionVideos.unshift({ filename: `📹 Clipe Individual: ${data.filename}`, rel_path: data.rel_path });
+          }
+        }
+      } catch (err) {
+        console.error("Erro no envio:", err);
       }
-    } catch (err) {
-      uploadProgressLabel.textContent = "❌ Erro de conexão ao enviar vídeo.";
+    }
+
+    if (uploadedCount > 0) {
+      // Adicionar opção de Tour Completo Unificado
+      const tourRelPath = "drive_uploads/TOUR_COMPLETO_UNIFICADO.mp4";
+      const tourFilename = `🎬 TOUR COMPLETO UNIFICADO DO IMÓVEL (${sessionVideos.length} Clipes Enviados)`;
+      
+      if (!sessionVideos.some(v => v.rel_path === tourRelPath)) {
+        sessionVideos.unshift({ filename: tourFilename, rel_path: tourRelPath });
+      } else {
+        const tourItem = sessionVideos.find(v => v.rel_path === tourRelPath);
+        if (tourItem) tourItem.filename = tourFilename;
+      }
+
+      sessionStorage.setItem("rekynt_session_videos", JSON.stringify(sessionVideos));
+      uploadProgressLabel.textContent = `✅ ${uploadedCount} vídeos do imóvel enviados com sucesso!`;
+      
+      // SELECIONAR AUTOMATICAMENTE O TOUR COMPLETO UNIFICADO COMO PADRÃO!
+      renderSessionMedia(tourRelPath);
+    } else {
+      uploadProgressLabel.textContent = "❌ Falha ao enviar arquivos.";
     }
   }
 
@@ -218,8 +245,12 @@ document.addEventListener("DOMContentLoaded", () => {
         opt.textContent = v.filename;
         selectVideo.appendChild(opt);
       });
+
+      const tourItem = sessionVideos.find(v => v.rel_path.includes("TOUR_COMPLETO"));
       if (selected_rel_path) {
         selectVideo.value = selected_rel_path;
+      } else if (tourItem) {
+        selectVideo.value = tourItem.rel_path;
       }
     }
 
@@ -233,7 +264,7 @@ document.addEventListener("DOMContentLoaded", () => {
       phoneVideoPlayer.style.display = "block";
       phoneVideoPlayer.src = "/assets/" + selectVideo.value;
       phoneVideoPlayer.play();
-      phoneStatusSubtitle.textContent = `▶ Tocando vídeo da casa: ${selectVideo.options[selectVideo.selectedIndex]?.text || ''}`;
+      phoneStatusSubtitle.textContent = `▶ Tocando vídeo do imóvel: ${selectVideo.options[selectVideo.selectedIndex]?.text || ''}`;
     }
   }
 
@@ -278,14 +309,13 @@ document.addEventListener("DOMContentLoaded", () => {
   // 1-Clique Render
   btnStartRender.addEventListener("click", async () => {
     if (!selectVideo.value) {
-      alert("Por favor, envie ou importe um vídeo primeiro antes de gerar o Reels.");
+      alert("Por favor, envie ou importe os vídeos do imóvel primeiro antes de gerar o Reels.");
       return;
     }
 
     jobStatusCard.style.display = "block";
     if (jobSpinner) jobSpinner.style.display = "inline-block";
 
-    // EXIBIR ANIMAÇÃO DE RENDER DENTRO DO PRÓPRIO CELULAR!
     simulatedBg.style.display = "block";
     phoneVideoPlayer.style.display = "none";
     phoneVideoPlayer.pause();
@@ -295,7 +325,7 @@ document.addEventListener("DOMContentLoaded", () => {
     phoneStatusSubtitle.textContent = "⏳ IA Editando Vídeo do Imóvel...";
 
     jobStatusTitle.textContent = "Criando Reels do Imóvel com IA...";
-    jobStatusMsg.textContent = "Processando vídeo da sessão atual em alta fidelidade...";
+    jobStatusMsg.textContent = "Unificando os cômodos da sessão atual em um Reels Comercial...";
     btnStartRender.disabled = true;
 
     const currentEmail = localStorage.getItem("rekynt_studio_email") || "corretor.rekynt@gmail.com";
