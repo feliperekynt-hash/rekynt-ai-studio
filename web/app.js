@@ -155,6 +155,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (!sessionVideos.some(v => v.rel_path === tourRelPath)) {
         sessionVideos.unshift({ filename: tourFilename, rel_path: tourRelPath });
       } else {
+        // Atualizar contador do Tour Completo
         const tourItem = sessionVideos.find(v => v.rel_path === tourRelPath);
         if (tourItem) tourItem.filename = tourFilename;
       }
@@ -246,6 +247,7 @@ document.addEventListener("DOMContentLoaded", () => {
         selectVideo.appendChild(opt);
       });
 
+      // SELECIONAR SEMPRE O TOUR COMPLETO SE ESTIVER DISPONÍVEL!
       const tourItem = sessionVideos.find(v => v.rel_path.includes("TOUR_COMPLETO"));
       if (selected_rel_path) {
         selectVideo.value = selected_rel_path;
