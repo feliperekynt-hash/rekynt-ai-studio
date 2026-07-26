@@ -115,7 +115,8 @@ def upload_file():
 
 def _download_google_drive_folder_custom(drive_url, out_dir):
     """
-    Extrator de Alta Precisão via Google Embedded List View (Funciona 100% na Nuvem/Render).
+    Motor de Download Direto de Alta Performance para Google Drive na Nuvem.
+    Bypassa avisos de virus e rate-limits usando streaming direto usercontent.
     """
     folder_match = re.search(r'(?:folders/|id=)([a-zA-Z0-9_-]+)', drive_url)
     if not folder_match:
@@ -132,27 +133,38 @@ def _download_google_drive_folder_custom(drive_url, out_dir):
             html = resp.read().decode('utf-8', errors='ignore')
 
         file_ids = list(set(re.findall(r'id=[\"\']entry-([a-zA-Z0-9_-]+)[\"\']', html)))
-        print(f"[Google Drive Scraper] IDs extraídos com SUCESSO via embedded ({len(file_ids)} clipes): {file_ids[:5]}")
-
         if not file_ids:
             file_ids = list(set(re.findall(r'file[/\\]+d[/\\]+([a-zA-Z0-9_-]{25,45})', html)))
+
+        print(f"[Google Drive Stream Engine] IDs extraídos com SUCESSO ({len(file_ids)} clipes do imóvel): {file_ids[:5]}")
 
         if not file_ids:
             return False
 
-        # Baixar até 10 clipes para formar o Reels comercial do imóvel
-        for idx, fid in enumerate(file_ids[:10]):
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        }
+
+        downloaded_count = 0
+        for idx, fid in enumerate(file_ids[:8]):
             out_file = os.path.join(out_dir, f"imovel_clip_{idx+1}.MOV")
             if not os.path.exists(out_file) or os.path.getsize(out_file) < 100000:
-                print(f"[Google Drive Scraper] Baixando clipe {idx+1}/{len(file_ids[:10])} (ID: {fid})...")
+                direct_dl_url = f"https://drive.usercontent.google.com/download?id={fid}&export=download&confirm=t"
+                print(f"[Google Drive Direct Stream] Baixando clipe {idx+1}/{len(file_ids[:8])}...")
                 try:
-                    gdown.download(id=fid, output=out_file, quiet=True, fuzzy=True, use_cookies=False)
+                    r_dl = urllib.request.Request(direct_dl_url, headers=headers)
+                    with urllib.request.urlopen(r_dl, timeout=30) as r_in, open(out_file, 'wb') as f_out:
+                        f_out.write(r_in.read())
+                    if os.path.exists(out_file) and os.path.getsize(out_file) > 100000:
+                        downloaded_count += 1
                 except Exception as ex:
-                    print(f"[Google Drive Scraper] Aviso ao baixar ID {fid}: {ex}")
+                    print(f"[Google Drive Stream] Aviso ao baixar clipe {idx+1}: {ex}")
+            else:
+                downloaded_count += 1
 
-        return True
+        return downloaded_count > 0
     except Exception as err:
-        print(f"[Google Drive Scraper] Erro ao raspar pasta do Drive: {err}")
+        print(f"[Google Drive Stream Engine] Erro: {err}")
         return False
 
 @app.route("/api/upload-drive-url", methods=["POST"])
@@ -165,7 +177,7 @@ def upload_drive_url():
     out_dir = os.path.join(ASSETS_DIR, "drive_uploads")
     os.makedirs(out_dir, exist_ok=True)
 
-    # 1. Tentar Extrator Direto de Alta Precisao (Embedded View)
+    # 1. Tentar Motor de Stream Direto
     success_custom = _download_google_drive_folder_custom(drive_url, out_dir)
 
     # 2. Fallback gdown
@@ -190,7 +202,7 @@ def upload_drive_url():
 
     if not all_videos:
         return jsonify({
-            "error": "Não foi possível acessar a pasta do Google Drive. Verifique se o link está como 'Qualquer pessoa com o link pode ver' ou use o botão 'Escolher Arquivo do Celular' para subir os vídeos direto da galeria!"
+            "error": "Não foi possível baixar os vídeos do Google Drive. Envie os vídeos direto da galeria usando o botão 'Escolher Arquivo do Celular' no topo da tela!"
         }), 400
 
     video_list = [
